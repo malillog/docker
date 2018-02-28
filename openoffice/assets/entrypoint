@@ -1,0 +1,22 @@
+#!bin/bash
+set -x
+
+SOFFICE_PATH='/opt/openoffice4/program'
+SOFFICE_ARGS2=" -nofirststartwizard -nologo -headless -invisible "
+SOFFICE_ARGS1=" -accept=socket,host=0.0.0.0,port=8100,tcpNoDelay=1;urp;StarOffice.ServiceManager "
+
+chmod -R 755 $SOFFICE_PATH
+cd $SOFFICE_PATH
+chcon -t textrel_shlib_t libvclplug_gen.so
+
+echo -n $"Starting OpenOffice "
+$SOFFICE_PATH/soffice $SOFFICE_ARGS1 $SOFFICE_ARGS2
+
+function soffice_stop() {
+  killproc soffice.bin
+}
+
+trap jboss_stop SIGHUP SIGINT SIGTERM SIGKILL
+/bin/bash -c 'while true; do sleep 6969; done' &
+child=$!
+wait "$child"

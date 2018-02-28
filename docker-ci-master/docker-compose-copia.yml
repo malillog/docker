@@ -1,0 +1,82 @@
+artifactory:
+  restart: always
+  image: mattgruter/artifactory
+  ports:
+    - "81:8080"
+  volumes:
+    - /home/docker/dockerVolume/compose-ci/artifactory/data:/artifactory/data
+    - /home/docker/dockerVolume/compose-ci/artifactory/logs:/artifactory/logs
+    - /home/docker/dockerVolume/compose-ci/artifactory/backup:/artifactory/backup
+jenkins:
+  restart: always
+  image: jenkins:alpine
+  environment:
+    - JENKINS_HOME=/var/jenkins_home
+  ports:
+    - "80:8080"
+    - "83:50000"
+  links:
+    - dbsonar
+    - artifactory
+    - registry
+    - sonarqube
+  volumes:
+    - /home/docker/dockerVolume/compose-ci/jenkins/var/jenkins_home:/var/jenkins_home
+registry:
+  restart: always
+  image: registry:2
+  ports:
+    - 5000:5000
+  environment:
+#    REGISTRY_HTTP_TLS_CERTIFICATE: /certs/domain.crt
+#    REGISTRY_HTTP_TLS_KEY: /certs/domain.key
+    REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+  volumes:
+    - /home/docker/dockerVolume/compose-ci/myregistrydata:/var/lib/registry
+sonarqube:  
+  restart: always
+  image: sonarqube:5.6.3-alpine
+  links:
+    - dbsonar
+  environment:
+    - SONARQUBE_JDBC_USERNAME=sonar
+    - SONARQUBE_JDBC_PASSWORD=sonar
+    - SONARQUBE_JDBC_URL=jdbc:postgresql://dbsonar:5432/sonar
+  ports:
+    - "82:9000"
+dbsonar:
+  restart: always
+  image: postgres:alpine
+  environment:
+    - POSTGRES_USER=sonar
+    - POSTGRES_PASSWORD=sonar
+    - POSTGRES_DB=sonar
+    - PGDATA=/var/lib/postgresql/data
+  ports:
+    - "5432:5432"
+  volumes:
+    - /home/docker/dockerVolume/compose-ci/postgresql/data:/var/lib/postgresql/data
+
+phppgadmin:
+  restart: always
+  image: jacksoncage/phppgadmin
+  environment:
+    - POSTGRES_HOST=dbsonar
+    - POSTGRES_PORT=5432
+    - POSTGRES_DEFAULTDB=sonar
+    - APACHE_SERVERNAME=localhost
+    - APACHE_SERVERADMIN=admin@localhost
+    - APACHE_DOCUMENTROOT=/var/www
+    - APACHE_RUN_USER=www-data
+    - APACHE_RUN_GROUP=www-data
+    - APACHE_LOG_DIR=/var/web/log/apache2
+    - APACHE_PID_FILE=/var/run/apache2.pid
+    - APACHE_RUN_DIR=/var/run/apache2
+    - APACHE_LOCK_DIR=/var/lock/apache2
+  ports:
+    - "84:80"
+  links:
+    - dbsonar
+
+
+

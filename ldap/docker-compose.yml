@@ -1,0 +1,39 @@
+version: '2'
+services:
+ volumes:
+    image: tianon/true
+    volumes:
+    - "~/docker/volumes/ldap/var:/var/lib/ldap"
+    
+# https://github.com/osixia/docker-openldap
+ ldap_ptwanda:
+    command: --loglevel debug
+    build: ./openldap
+    image: osixia/openldap
+    container_name: ldap_ptwanda
+    restart: always
+    hostname: ldap_ptwanda
+    volumes_from:
+    - "volumes"
+    environment:
+      LDAP_DOMAIN: com
+    ports:
+    - "389:389"
+    - "636:636"
+    
+# https://github.com/osixia/docker-phpLDAPadmin
+ phpldapadmin:
+    image: osixia/phpldapadmin
+    container_name: phpldapadmin
+    restart: always
+    hostname: phpldapadmin
+    domainname: phpldapadmin.locadomain
+    volumes:
+    - "~/docker/volumes/phpldapadmin/my-config.php:/container/service/phpldapadmin/assets/config.php"
+    environment:
+      - PHPLDAPADMIN_LDAP_HOSTS=ldap_ptwanda
+    links:
+    - ldap_ptwanda
+    ports:
+    - "9443:443"
+    - "9080:80"

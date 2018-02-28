@@ -1,0 +1,123 @@
+version: '2'
+services:
+ ci_artifactory: 
+    image: docker.bintray.io/jfrog/artifactory-oss:latest
+    container_name: ci_artifactory
+    restart: "always"
+    ports:
+    - '8080:8081'
+    volumes:
+      - '/home/docker/dockerVolume/compose-ci/artifactory/data:/var/opt/jfrog/artifactory'
+    dns:
+     - 192.168.0.1
+    networks:
+     ci_net:
+      ipv4_address: 10.0.4.2  
+ ci_jenkins:   
+    image: jenkinsci/jenkins
+    container_name: ci_jenkins
+    restart: "always"
+    ports:
+      - '80:8080'
+      - '50000:50000'
+    environment:
+      - JENKINS_HOME=/var/jenkins_home 
+    volumes:
+      - '/home/docker/dockerVolume/compose-ci/jenkins/var/jenkins_home:/var/jenkins_home'
+    depends_on:
+      - ci_sonarqube
+      - ci_artifactory
+      - ci_registry
+      - ci_postgres
+    links:
+      - ci_sonarqube
+      - ci_artifactory
+      - ci_registry
+      - ci_postgres
+    dns:
+    - 192.168.0.1 
+    networks:
+     ci_net:
+      ipv4_address: 10.0.4.3
+  
+ ci_registry:
+    image: registry:2
+    container_name: ci_registry
+    restart: "always"
+    ports:
+      - '5000:5000'
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY:/var/lib/registry
+    volumes:
+      - '/home/docker/dockerVolume/compose-ci/myregistrydata:/var/lib/registry'
+    dns:
+    - 192.168.0.1 
+    networks:
+     ci_net:
+      ipv4_address: 10.0.4.4
+ ci_sonarqube:
+    image: sonarqube:5.6.3-alpine
+    container_name: ci_sonarqube
+    restart: "always"
+    ports:
+      - '9000:9000'
+    environment:
+      - SONARQUBE_JDBC_USERNAME=sonar
+      - SONARQUBE_JDBC_PASSWORD=sonar
+      - SONARQUBE_JDBC_URL=jdbc:postgresql://ci_postgres:5432/sonar
+    depends_on:
+      - ci_postgres
+    links:
+      - ci_postgres
+    dns:
+    - 192.168.0.1 
+    networks:
+     ci_net:
+      ipv4_address: 10.0.4.5  
+ ci_postgres:
+    image: postgres:9.4-alpine
+    container_name: ci_postgres
+    restart: "always"
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=sonar
+      - POSTGRES_PASSWORD=sonar
+      - POSTGRES_DB=sonar
+      - PGDATA=/var/lib/postgresql/data
+    volumes:
+      - '/home/docker/dockerVolume/compose-ci/postgresql/data:/var/lib/postgresql/data'
+    dns:
+    - 192.168.0.1 
+    networks:
+     ci_net:
+      ipv4_address: 10.0.4.6  
+ ci_pgadmin4:
+    image: fenglc/pgadmin4
+    container_name: ci_pgadmin4
+    restart: "always"
+    ports:
+      - '5050:5050'
+    environment:
+      - DEFAULT_USER=admin
+      - DEFAULT_PASSWORD=admin
+      - MAIL_SERVER=192.168.0.10
+      - MAIL_PORT=225
+    depends_on:
+      - ci_postgres
+    links:
+      - ci_postgres
+    dns:
+    - 192.168.0.1 
+    networks:
+     ci_net:
+      ipv4_address: 10.0.4.7    
+  
+networks:
+ ci_net:
+  driver: bridge
+  ipam:
+   driver: default
+   config:
+    - subnet: 10.0.4.0/24
+      gateway: 10.0.4.1
